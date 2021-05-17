@@ -20,7 +20,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 handler404 = "posts.views.page_not_found"  # noqa
-handler500 = "posts.views.server_error"  # noqa 
+handler500 = "posts.views.server_error"  # noqa
 
 urlpatterns = [
     path('about/', include(('about.urls', 'about'), namespace='about')),
