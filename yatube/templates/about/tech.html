@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Технологии{% endblock %}
+{% block content %}
+  <div class="row">
+    <div class="col-md-3 mb-3 mt-3">
+      <div class="card">
+        <div class="card-body">
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item">
+              <div class="h3">
+                Технологии
+              </div> 
+            </li>
+            <li class="list-group-item">
+              <div class="h6 text-muted">
+                <ul>
+                  <li class="p-2">
+                    <a href="https://www.python.org/" target="_blank" rel="noopener noreferrer" icon:logo class="odolisk">
+                      {% include 'about/includes/img_python.html' %}
+                    </a>
+                  </li>
+                  <li class="p-2">
+                    <a href="https://www.djangoproject.com/" target="_blank" rel="noopener noreferrer" class="odolisk">
+                      {% include 'about/includes/svg_django.html' %}
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://getbootstrap.com" target="_blank" rel="noopener noreferrer" class="odolisk">
+                      {% include 'about/includes/svg_bootstrap.html' %}
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-9">
+      <div class="card-body">
+        <div class="card-text">
+          <p>
+            Для написания проекта использовались Python, Django и Bootstrap. <hr>
+            На мой взгляд Python —  очень интересный язык. Его синтаксис буквально заставляет писать читабельный код.
+            Основные принципы и модели языка даются легко. Но иногда хочется сделать всё по старинке и нарушить принцип DRY.
+          </p>
+          <p>
+            Django - весьма высокоуровневый фреймворк. При определённых умениях свой сайт можно поднять буквально в несколько кликов.
+            Если понять структуру проекта, то далее останется заниматься только шлифовкой особенностей конкретного исполнения.
+          </p>
+          <p>
+            С Bootstrap я познакомился совсем недавно, и он меня очень впечатлил. Прилизать дизайн сайта, написав несколько слов — 
+            это то, что он позволяет сделать с лёгкостью. Да мы не получим премию за достижения в области дизайна, но сделаем проект 
+            симпатичнее и удобнее.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %} 

@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Об авторе проекта{% endblock %}
+{% block content %}
+  <div class="row">
+    <div class="col-md-3 mb-3 mt-3">
+      <div class="card">
+        <div class="card-body d-flex justify-content-center">
+          <ul class="list-group list-group-flush ">
+            <li class="list-group-item">
+              {% include 'about/includes/svg_logo.html' %}
+            </li>
+            <li class="list-group-item">
+              <div class="h3">
+                Об авторе
+              </div> 
+            </li>
+            <li class="list-group-item">
+              <div class="h6 text-muted">
+                <ul>
+                  <li>
+                    {% include 'about/includes/svg_github.html' %}
+                    {% spaceless %}
+                      <a href="https://github.com/odolisk" target="_blank" rel="noopener noreferrer" icon:logo class="odolisk">
+                        GitHub
+                      </a>
+                    {% endspaceless %}
+                  </li>
+                  <li>
+                    {% include 'about/includes/svg_instagram.html' %}
+                    {% spaceless %}
+                      <a href="https://www.instagram.com/odolisk/" target="_blank" rel="noopener noreferrer" icon:logo class="odolisk">
+                        Instagram
+                      </a>
+                    {% endspaceless %}
+                  </li>
+                </ul>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-9">
+      <div class="card-body">
+        <div class="card-text">
+          <p>
+            Меня зовут Артем. <br> Программированием я увлекаюсь со школы. Начинал с Pascal.
+            Позже, в университете (любимый физфак МГУ {% include 'about/includes/svg_phys.html' %}) 
+            изучал Delphi и немного Assembler. Так же начинал учить C++. 
+            Но ничем из этого впоследствии почти не пользовался. <br>
+            Однако, придя на работу, вплотную занялся Visual Basic for Application (конкретно в Excel).
+            И написал облегчённую замену кассовой программе для магазина компьютерной и бытовой техники.
+            Это был обычный Excel файл с макросами. Но он умел работать со сканером штрих-кодов и фискальным регистратором
+            Спарк без дополнительного ПО.<br>
+            В последнее время работаю системным администратором на конюшне (как бы смешно это ни звучало). 
+            Имею в своём управлении 12 серверов, чуть более 400 камер, около 100 пользователей и ещё кучу всего.<hr>
+            Сейчас очень захотелось заняться разработкой. И потому я в Яндекс.Практикум на бэкэнде.<br>
+            Люблю Python за то, что он позволят писать красивый структурированный "лестничный" код.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %} 

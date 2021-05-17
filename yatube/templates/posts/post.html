@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Просмотр сообщения #{{ post.id }}{% endblock %}
+{% block content %}
+  <div class="row">
+    {% include 'includes/profile_card.html' with single_post=True %}
+    <div class="col-md-9">
+      {% include 'includes/post_item.html' with post=post single_post=True %}
+      {% include 'includes/comments.html' with template='comment' %}
+    </div>
+  </div>
+{% endblock %}

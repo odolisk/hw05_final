@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}
+  {{ new|yesno:'Добавить запись,Редактировать запись' }}
+{% endblock %}
+{% block content %}
+  {% if post %}
+    {% include 'includes/form.html' with button_text='Сохранить' card_header='Редактировать запись' %}
+  {% else %}
+    {% include 'includes/form.html' with button_text='Добавить' card_header='Добавить запись' %}
+  {% endif %}
+{% endblock %}

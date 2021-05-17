@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% load thumbnail %}
+{% block title %} Обновления избранных авторов{% endblock %}
+{% block header %}Обновления избранных авторов{% endblock %}
+{% block content %}
+  {% include 'includes/menu.html' with follow=True %}
+  {% for post in page %}
+    {% include 'includes/post_item.html' with post=post %}
+  {% endfor %}
+{% endblock %}

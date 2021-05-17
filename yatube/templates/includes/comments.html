@@ -1,0 +1,19 @@
+{% if user.is_authenticated %}
+  <div class="card my-4 pt-3">
+    {% include 'includes/form.html' with button_text='Добавить комментарий' %}
+  </div>
+{% endif %}
+{% for item in comments %}
+<div class="media card mb-4">
+  <div class="media-body card-body">
+    <p class="card-text">
+      <a href="{% url 'posts:profile' item.author.username %}"
+          name="comment_{{ item.id }}">
+        <strong class="d-block text-gray-dark">@{{ item.author.username }}</strong>
+      </a>
+    </p>
+    <p>{{ item.text | linebreaksbr }}</p>
+    <small class="text-muted">{{ item.created }}</small>
+  </div>
+</div>
+{% endfor %}
