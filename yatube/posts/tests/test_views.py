@@ -9,7 +9,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from posts.forms import PostForm
-from posts.models import Comment, Follow, Group, Post, User
+from posts.models import Follow, Group, Post, User
 
 USERNAME = 'testuser'
 USERNAME2 = 'followuser'
@@ -17,10 +17,10 @@ POSTTEXT = 'Тут текст нового поста'
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
 
     @classmethod
-    @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
     def setUpClass(cls):
         super().setUpClass()
         # settings.MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -93,7 +93,7 @@ class PostPagesTests(TestCase):
                 response = self.authorized_client.get(path)
                 self.assertTemplateUsed(response, template)
 
-    def context_test(self, context, flag):
+    def context_test(self, context, new_post, flag):
         """Check if 'page' or 'post' is in context.
         Compare context with test data."""
         self.assertIn(flag, context)
@@ -101,23 +101,22 @@ class PostPagesTests(TestCase):
             post = context[flag]
         else:
             post = context[flag][0]
-        self.assertEqual(post.author, PostPagesTests.user)
-        self.assertEqual(post.group, PostPagesTests.group)
-        self.assertEqual(post.text, POSTTEXT)
-        self.assertEqual(post.pub_date, PostPagesTests.post.pub_date)
-        self.assertEqual(post.image, PostPagesTests.image_path)
+        self.assertEqual(post.author, new_post.author)
+        self.assertEqual(post.group, new_post.group)
+        self.assertEqual(post.text, new_post.text)
+        self.assertEqual(post.pub_date, new_post.pub_date)
 
     def test_index_use_correct_context(self):
         """Index page has right context."""
         response = self.authorized_client.get(PostPagesTests.index)
-        self.context_test(response.context, 'page')
+        self.context_test(response.context, PostPagesTests.post, 'page')
         post_user = response.context['user']
         self.assertEqual(post_user, PostPagesTests.user)
 
     def test_group_use_correct_context(self):
         """Group post has right context."""
         response = self.authorized_client.get(PostPagesTests.group_post)
-        self.context_test(response.context, 'page')
+        self.context_test(response.context, PostPagesTests.post, 'page')
         post_user = response.context['user']
         self.assertIn('group', response.context)
         post_group = response.context['group']
@@ -140,7 +139,7 @@ class PostPagesTests(TestCase):
     def test_profile_use_correct_context(self):
         """Profile page is using correct context."""
         response = self.authorized_client.get(PostPagesTests.profile)
-        self.context_test(response.context, 'page')
+        self.context_test(response.context, PostPagesTests.post, 'page')
         post_user = response.context['user']
         self.assertIn('author', response.context)
         author = response.context['author']
@@ -150,7 +149,7 @@ class PostPagesTests(TestCase):
     def test_post_use_correct_context(self):
         """Post page is using correct context."""
         response = self.authorized_client.get(PostPagesTests.single_post)
-        self.context_test(response.context, 'post')
+        self.context_test(response.context, PostPagesTests.post, 'post')
         self.assertEqual(response.context['user'], PostPagesTests.user)
         self.assertIn('author', response.context)
         self.assertEqual(response.context['author'], PostPagesTests.user)
@@ -179,88 +178,77 @@ class PostPagesTests(TestCase):
         self.assertEqual(len(response.context['page']), 0)
 
     def test_cache_index(self):
-        """Index page must be cached with key 'index_page'."""
-        self.client.get(PostPagesTests.index)
-        key = make_template_fragment_key('index_page')
+        """Index page must be cached with complex key."""
+        post = Post.objects.create(
+            text='Тест кэшированного поста ',
+            author=PostPagesTests.user
+        )
+        response = self.client.get(PostPagesTests.index)
+        before_del = response.content.decode('utf-8')
+        page = response.context['page']
+        key = make_template_fragment_key('index_page', [page])
         self.assertTrue(cache.get(key))
 
-    def test_auth_user_can_follow_unfollow(self):
-        """User can follow/unfollow other users."""
+        post.delete()
+        response = self.client.get(PostPagesTests.index)
+        page = response.context['page']
+        after_del = response.content.decode('utf-8')
+        self.assertEqual(before_del, after_del)
+
+        cache.delete(key)
+        response = self.client.get(PostPagesTests.index)
+        page = response.context['page']
+        after_clean_cache = response.content.decode('utf-8')
+        self.assertNotEqual(after_clean_cache, after_del)
+
+    def test_auth_user_can_follow(self):
+        """Authorized user can follow other users."""
+        follows_before = Follow.objects.count()
+        blogger = User.objects.create(username=USERNAME2)
+        self.authorized_client.get(self.profile_follow)
+        follows_after = Follow.objects.count()
+        self.assertEqual(follows_after, follows_before + 1)
+        follow = Follow.objects.first()
+        self.assertEqual(follow.author, blogger)
+        self.assertEqual(follow.user, PostPagesTests.user)
+
+    def test_auth_user_can_unfollow(self):
+        """Authorized user can unfollow other users."""
         User.objects.create(username=USERNAME2)
         self.authorized_client.get(self.profile_follow)
-        self.assertTrue(
-            Follow.objects.filter(author__username=USERNAME2,
-                                  user__username=USERNAME).exists())
         self.authorized_client.get(self.profile_unfollow)
-        self.assertFalse(
-            Follow.objects.filter(author__username=USERNAME2,
-                                  user__username=USERNAME).exists())
+        follows_after = Follow.objects.count()
+        self.assertEqual(follows_after, 0)
 
-    @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
-    def test_new_post_shows_only_to_followers(self):
-        """New post shows only in feeds of followers."""
+    def test_new_post_shown_to_subscribed_user(self):
+        """New post is shown in feeds of followers."""
         post_user = User.objects.create(username=USERNAME2)
 
         auth_follow_client = Client()
         auth_follow_client.force_login(PostPagesTests.user)
         auth_follow_client.get(self.profile_follow)
 
+        new_post = Post.objects.create(
+            text='Вечная весна в одиночной камере',
+            author=post_user,
+            group=self.group)
+
+        response = auth_follow_client.get(self.follow)
+        self.assertIn('page', response.context)
+        self.context_test(response.context, new_post, 'page')
+
+    def test_new_post_not_shown_to_unsubscribed_user(self):
+        """New post is not shown in feeds of unsubscribed users."""
+        post_user = User.objects.create(username=USERNAME2)
         not_follow_user = User.objects.create(username='iamnotfollow')
         auth_not_follow_client = Client()
         auth_not_follow_client.force_login(not_follow_user)
 
-        small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
-        uploaded = SimpleUploadedFile(
-            name='small_follow.gif',
-            content=small_gif,
-            content_type='image/gif')
-        image_path = 'posts/small_follow.gif'
-
-        new_post = Post.objects.create(
-            text='Вечная весна в одиночной камере',
+        Post.objects.create(
+            text='Только дожды вселенский нас утешит',
             author=post_user,
-            group=self.group,
-            image=uploaded)
-
-        response = auth_follow_client.get(self.follow)
-        self.assertIn('page', response.context)
-        self.assertNotEqual(len(response.context['page']), 0)
-        post = response.context['page'][0]
-        self.assertEqual(post.id, new_post.id)
-        self.assertEqual(post.author, new_post.author)
-        self.assertEqual(post.group, new_post.group)
-        self.assertEqual(post.text, new_post.text)
-        self.assertEqual(post.pub_date, new_post.pub_date)
-        self.assertEqual(post.image, image_path)
+            group=self.group)
 
         response = auth_not_follow_client.get(self.follow)
         self.assertIn('page', response.context)
-        self.assertEqual(len(response.context['page']), 0)
-
-    def test_only_auth_user_can_comment(self):
-        """Only authorized user can comment posts."""
-        post_comments_count = Comment.objects.filter(
-            post__id=self.post.id).count()
-        comment_text = {
-            'text': 'Попытка неавторизованного коммента',
-        }
-        response = self.client.post(
-            self.comment,
-            data=comment_text,
-            follow=True
-        )
-        self.assertRedirects(response,
-                             reverse('login')
-                             + '?next='
-                             + reverse('posts:add_comment',
-                                       args=(USERNAME, self.post.id)))
-        self.assertEqual(
-            Comment.objects.filter(
-                post__id=self.post.id).count(), post_comments_count)
+        self.assertEqual(len(response.context['page'].object_list), 0)

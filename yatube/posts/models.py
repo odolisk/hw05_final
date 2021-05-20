@@ -95,14 +95,10 @@ class Follow(models.Model):
     class Meta:
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'author'],
+                                    name="follow-users")
+        ]
 
     def __str__(self):
         return f'{self.user.username} to {self.author.username}'
-
-    def get_follow_or_none(request, username):
-        try:
-            following = Follow.objects.get(author__username=username,
-                                           user=request.user)
-        except Follow.DoesNotExist:
-            following = None
-        return following

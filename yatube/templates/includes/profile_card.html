@@ -4,50 +4,48 @@
       <ul class="list-group list-group-flush ">
         <li class="list-group-item">
           <div class="h4 d-flex justify-content-center">
-            {% if single_post %}
-              {{ post.author.get_full_name }}
-            {% else %}
               {{ author.get_full_name }}
-            {% endif %}
           </div>
         </li>
         <li class="list-group-item">
           <div class="h5 text-muted d-flex justify-content-center mb-1">
             {% if single_post %}
-              <a href="{% url 'posts:profile' post.author.username %}">@{{ post.author.username }}</a>
+              <a href="{% url 'posts:profile' author.username %}">@{{ author.username }}</a>
             {% else %}
               {{ author.username }}
             {% endif %}
           </div>
         </li>
-        {% if user != author and user.is_authenticated %}
-          <li class="list-group-item d-flex justify-content-center">
-            {% if follow.follow_flag %}
-              <a class="btn btn-lg btn-light" 
-                href="{% url 'posts:profile_unfollow' author.username %}" role="button"> 
-                Отписаться 
-              </a> 
-            {% else %}
-              <a class="btn btn-lg btn-primary" href="{% url 'posts:profile_follow' author.username %}" role="button">
-                Подписаться 
-              </a>
-            {% endif %}
-          </li> 
+        {% if user.is_authenticated and user != author %}
+          {% if not single_post %}
+            <li class="list-group-item d-flex justify-content-center">
+              {% if follow %}
+                <a class="btn btn-lg btn-light" 
+                  href="{% url 'posts:profile_unfollow' author.username %}" role="button"> 
+                  Отписаться 
+                </a> 
+              {% else %}
+                <a class="btn btn-lg btn-primary" href="{% url 'posts:profile_follow' author.username %}" role="button">
+                  Подписаться 
+                </a>
+              {% endif %}
+            </li> 
+          {% endif %}
         {% endif %}
       </ul>
     </div>
     <ul class="list-group list-group-flush">
       <li class="list-group-item">
         <div class="h6 text-muted">
-          Подписчиков: {{ follow.following }} <br />
-          Подписан: {{ follow.follow }}
+            <p>Подписчиков: {{ author.following.count }}</p>
+            <p>Подписан: {{ author.follower.count }}</p>
         </div>
       </li>
       <li class="list-group-item">
         <div class="h6 text-muted">
           Записей: 
           {% if single_post %}
-            {{ post.author.posts_author.count }}
+            {{ author.posts_author.count }}
           {% else %}
             {{ page.paginator.count }}
           {% endif %}

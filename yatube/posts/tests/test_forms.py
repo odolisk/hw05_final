@@ -3,15 +3,17 @@ import tempfile
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from posts.models import Group, Post, User
 
 USERNAME = 'testuser'
 POSTTEXT = 'Тут текст очередного нового поста'
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostFormTests(TestCase):
 
     @classmethod
@@ -146,3 +148,39 @@ class PostFormTests(TestCase):
         test_post = Post.objects.get(pk=post.id)
         self.assertNotEqual(test_post.text, post_data['text'])
         self.assertNotEqual(test_post.group, post_data['group'])
+
+    def test_only_auth_user_can_comment(self):
+        """Only authorized user can comment posts."""
+        post = Post.objects.create(
+            text="Пост для теста комментов",
+            author=PostFormTests.user,
+            group=PostFormTests.group,
+        )
+        comments_before = post.comments.count()
+        comment_text = {
+            'text': 'Попытка неавторизованного коммента',
+        }
+        anonym_response = self.client.post(
+            reverse('posts:add_comment',
+                    args=(USERNAME, post.id,)),
+            data=comment_text,
+            follow=True
+        )
+        self.assertRedirects(anonym_response,
+                             reverse('login')
+                             + '?next='
+                             + reverse('posts:add_comment',
+                                       args=(USERNAME, post.id)))
+        self.assertEqual(post.comments.count(), comments_before)
+
+        auth_response = self.authorized_client.post(
+            reverse('posts:add_comment',
+                    args=(USERNAME, post.id,)),
+            data=comment_text,
+            follow=True
+        )
+        self.assertRedirects(auth_response,
+                             reverse('posts:post',
+                                     args=(USERNAME, post.id)))
+        self.assertEqual(post.comments.count(), comments_before + 1)
+        self.assertEqual(post.comments.first().text, comment_text['text'])
