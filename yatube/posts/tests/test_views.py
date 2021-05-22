@@ -3,7 +3,6 @@ import tempfile
 
 from django.conf import settings
 from django.core.cache import cache
-from django.core.cache.utils import make_template_fragment_key
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -14,30 +13,13 @@ from posts.models import Follow, Group, Post, User
 USERNAME = 'testuser'
 USERNAME2 = 'followuser'
 POSTTEXT = 'Тут текст нового поста'
-TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
-@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # settings.MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
-        cls.small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
-        cls.uploaded = SimpleUploadedFile(
-            name='small.gif',
-            content=cls.small_gif,
-            content_type='image/gif'
-        )
-        cls.image_path = 'posts/small.gif'
         cls.user = User.objects.create(username=USERNAME)
         cls.group = Group.objects.create(
             title='test',
@@ -48,7 +30,6 @@ class PostPagesTests(TestCase):
             text=POSTTEXT,
             author=cls.user,
             group=cls.group,
-            image=cls.uploaded
         )
         cls.index = reverse('posts:index')
         cls.new_post = reverse('posts:new_post')
@@ -76,22 +57,10 @@ class PostPagesTests(TestCase):
             cls.follow: 'posts/follow.html'
         }
 
-    @classmethod
-    @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
-    def tearDownClass(cls):
-        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
-        super().tearDownClass()
-
     def setUp(self):
+        cache.clear()
         self.authorized_client = Client()
         self.authorized_client.force_login(PostPagesTests.user)
-
-    def test_views_uses_correct_templates(self):
-        """Views are using correct templates."""
-        for path, template in self.templates_names.items():
-            with self.subTest(template=template):
-                response = self.authorized_client.get(path)
-                self.assertTemplateUsed(response, template)
 
     def context_test(self, context, new_post, flag):
         """Check if 'page' or 'post' is in context.
@@ -105,6 +74,14 @@ class PostPagesTests(TestCase):
         self.assertEqual(post.group, new_post.group)
         self.assertEqual(post.text, new_post.text)
         self.assertEqual(post.pub_date, new_post.pub_date)
+        self.assertEqual(post.image._file, new_post.image._file)
+
+    def test_views_uses_correct_templates(self):
+        """Views are using correct templates."""
+        for path, template in self.templates_names.items():
+            with self.subTest(template=template):
+                response = self.authorized_client.get(path)
+                self.assertTemplateUsed(response, template)
 
     def test_index_use_correct_context(self):
         """Index page has right context."""
@@ -185,19 +162,14 @@ class PostPagesTests(TestCase):
         )
         response = self.client.get(PostPagesTests.index)
         before_del = response.content.decode('utf-8')
-        page = response.context['page']
-        key = make_template_fragment_key('index_page', [page])
-        self.assertTrue(cache.get(key))
 
         post.delete()
         response = self.client.get(PostPagesTests.index)
-        page = response.context['page']
         after_del = response.content.decode('utf-8')
         self.assertEqual(before_del, after_del)
 
-        cache.delete(key)
+        cache.clear()
         response = self.client.get(PostPagesTests.index)
-        page = response.context['page']
         after_clean_cache = response.content.decode('utf-8')
         self.assertNotEqual(after_clean_cache, after_del)
 
@@ -214,12 +186,16 @@ class PostPagesTests(TestCase):
 
     def test_auth_user_can_unfollow(self):
         """Authorized user can unfollow other users."""
-        User.objects.create(username=USERNAME2)
-        self.authorized_client.get(self.profile_follow)
+        author = User.objects.create(username=USERNAME2)
+        Follow.objects.create(
+            user=PostPagesTests.user,
+            author=author
+        )
         self.authorized_client.get(self.profile_unfollow)
         follows_after = Follow.objects.count()
         self.assertEqual(follows_after, 0)
 
+    @override_settings(MEDIA_ROOT=tempfile.mkdtemp(dir=settings.MEDIA_ROOT))
     def test_new_post_shown_to_subscribed_user(self):
         """New post is shown in feeds of followers."""
         post_user = User.objects.create(username=USERNAME2)
@@ -228,14 +204,30 @@ class PostPagesTests(TestCase):
         auth_follow_client.force_login(PostPagesTests.user)
         auth_follow_client.get(self.profile_follow)
 
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
+
         new_post = Post.objects.create(
             text='Вечная весна в одиночной камере',
             author=post_user,
-            group=self.group)
+            group=self.group,
+            image=uploaded)
 
         response = auth_follow_client.get(self.follow)
         self.assertIn('page', response.context)
         self.context_test(response.context, new_post, 'page')
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
 
     def test_new_post_not_shown_to_unsubscribed_user(self):
         """New post is not shown in feeds of unsubscribed users."""

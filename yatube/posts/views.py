@@ -1,4 +1,3 @@
-
 from http import HTTPStatus
 
 from django.conf import settings
@@ -20,7 +19,9 @@ def get_paginator_page(request, posts):
 
 def index(request):
     """Return index page with last posts, ordered by date DESC."""
-    all_posts = Post.objects.select_related('author').all()
+    all_posts = Post.objects.select_related(
+        'author').select_related(
+            'group').prefetch_related('comments')
     page = get_paginator_page(request, all_posts)
     return render(request, 'posts/index.html',
                   {'page': page})
@@ -65,13 +66,13 @@ def post_view(request, username, post_id):
     """Return post page with 'post_id' = post_id ."""
     post = get_object_or_404(Post, author__username=username, pk=post_id)
     form = CommentForm(request.POST or None)
-    comments = post.comments.all()  # получаем комменты по требованию pytest
+    comments = post.comments.all()
     return render(
         request, 'posts/post.html',
         {'post': post,
          'author': post.author,
          'form': form,
-         'comments': comments,  # передаём в контекст по требованию pytest
+         'comments': comments,
          })
 
 
@@ -114,10 +115,9 @@ def is_followed(request, author):
     """Return status of follows by request user."""
     if not request.user.is_authenticated:
         return False
-    else:
-        return Follow.objects.filter(
-            author=author,
-            user=request.user).exists()
+    return Follow.objects.filter(
+        author=author,
+        user=request.user).exists()
 
 
 @login_required
@@ -133,8 +133,8 @@ def follow_index(request):
 def profile_follow(request, username):
     """Follow user with 'username' by 'request user'."""
     author = get_object_or_404(User, username=username)
-    if not (is_followed(request, author)) and request.user != author:
-        Follow.objects.create(
+    if request.user != author:
+        Follow.objects.get_or_create(
             author=author,
             user=request.user)
     return redirect('posts:profile', username=username)
@@ -144,10 +144,9 @@ def profile_follow(request, username):
 def profile_unfollow(request, username):
     """Unfollow user with 'username' by 'request user'."""
     author = get_object_or_404(User, username=username)
-    if is_followed(request, author):
-        Follow.objects.get(
-            author=author,
-            user=request.user).delete()
+    Follow.objects.filter(
+        author=author,
+        user=request.user).delete()
     return redirect('posts:profile', username=username)
 
 
@@ -165,8 +164,3 @@ def server_error(request):
     """Return 500 error page."""
     return render(request, 'misc/500.html',
                   status=HTTPStatus.INTERNAL_SERVER_ERROR)
-
-
-def forbidden(request, exception):
-    """Return 403 error page."""
-    return render(request, 'misc/403.html', status=HTTPStatus.FORBIDDEN)

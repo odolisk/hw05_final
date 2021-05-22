@@ -43,12 +43,7 @@
       </li>
       <li class="list-group-item">
         <div class="h6 text-muted">
-          Записей: 
-          {% if single_post %}
-            {{ author.posts_author.count }}
-          {% else %}
-            {{ page.paginator.count }}
-          {% endif %}
+          Записей: {{ author.posts_author.count }}
         </div>
       </li>
     </ul>

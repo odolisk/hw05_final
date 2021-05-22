@@ -10,16 +10,13 @@ from posts.models import Group, Post, User
 
 USERNAME = 'testuser'
 POSTTEXT = 'Тут текст очередного нового поста'
-TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
-@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostFormTests(TestCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        settings.MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
         cls.user = User.objects.create(username=USERNAME)
         cls.group = Group.objects.create(
             title='test',
@@ -27,15 +24,11 @@ class PostFormTests(TestCase):
             description='test group'
         )
 
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
-        super().tearDownClass()
-
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(PostFormTests.user)
 
+    @override_settings(MEDIA_ROOT=tempfile.mkdtemp(dir=settings.MEDIA_ROOT))
     def test_valid_form_create_post(self):
         """Valid PostForm create post in posts."""
         small_gif = (
@@ -68,6 +61,7 @@ class PostFormTests(TestCase):
         self.assertEqual(post.group, PostFormTests.group)
         self.assertEqual(post.author, PostFormTests.user)
         self.assertEqual(post.image.name, f'posts/{uploaded.name}')
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
 
     def test_valid_form_saves_edited_post(self):
         """Valid form saves the edited post after submit."""
@@ -149,10 +143,10 @@ class PostFormTests(TestCase):
         self.assertNotEqual(test_post.text, post_data['text'])
         self.assertNotEqual(test_post.group, post_data['group'])
 
-    def test_only_auth_user_can_comment(self):
-        """Only authorized user can comment posts."""
+    def test_guest_user_cant_comment(self):
+        """Guest user can't comment posts."""
         post = Post.objects.create(
-            text="Пост для теста комментов",
+            text="Пост для теста неавторизированного коммента",
             author=PostFormTests.user,
             group=PostFormTests.group,
         )
@@ -173,6 +167,17 @@ class PostFormTests(TestCase):
                                        args=(USERNAME, post.id)))
         self.assertEqual(post.comments.count(), comments_before)
 
+    def test_auth_user_can_comment(self):
+        """Authorized user can comment posts."""
+        post = Post.objects.create(
+            text="Пост для теста авторизированного коммента",
+            author=PostFormTests.user,
+            group=PostFormTests.group,
+        )
+        comments_before = post.comments.count()
+        comment_text = {
+            'text': 'Попытка авторизованного коммента',
+        }
         auth_response = self.authorized_client.post(
             reverse('posts:add_comment',
                     args=(USERNAME, post.id,)),
@@ -183,4 +188,8 @@ class PostFormTests(TestCase):
                              reverse('posts:post',
                                      args=(USERNAME, post.id)))
         self.assertEqual(post.comments.count(), comments_before + 1)
-        self.assertEqual(post.comments.first().text, comment_text['text'])
+        comment = post.comments.first()
+        self.assertEqual(comment.text, comment_text['text'])
+        self.assertEqual(comment.author, PostFormTests.user)
+        self.assertEqual(comment.created,
+                         auth_response.context['comments'].first().created)
