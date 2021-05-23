@@ -20,8 +20,8 @@ def get_paginator_page(request, posts):
 def index(request):
     """Return index page with last posts, ordered by date DESC."""
     all_posts = Post.objects.select_related(
-        'author').select_related(
-            'group').prefetch_related('comments')
+        'author', 'group'
+    ).prefetch_related('comments')
     page = get_paginator_page(request, all_posts)
     return render(request, 'posts/index.html',
                   {'page': page})
@@ -30,7 +30,9 @@ def index(request):
 def group_posts(request, slug):
     """Return page with last group posts, ordered by date DESC."""
     group = get_object_or_404(Group, slug=slug)
-    posts = group.posts_group.select_related('author').all()
+    posts = group.posts_group.select_related(
+        'author'
+    ).prefetch_related('comments')
     page = get_paginator_page(request, posts)
     return render(request, 'posts/group.html',
                   {'group': group, 'page': page})
@@ -52,7 +54,9 @@ def new_post(request):
 def profile(request, username):
     """Return profile page with posts of 'username'."""
     author = get_object_or_404(User, username=username)
-    posts = author.posts_author.select_related('group').all()
+    posts = author.posts_author.select_related(
+        'group'
+    ).prefetch_related('comments')
     page = get_paginator_page(request, posts)
     follow = is_followed(request, author)
     return render(request, 'posts/profile.html',

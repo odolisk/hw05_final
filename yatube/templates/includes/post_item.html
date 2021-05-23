@@ -11,9 +11,9 @@
       {{ post.text|linebreaksbr }}
     </p>
     {% if post.group %}
-    <a class="card-link muted m-2" href="{% url 'posts:group_posts' post.group.slug %}">
-      <strong class="d-block text-gray-dark">#{{ post.group.title }}</strong>
-    </a>
+      <a class="card-link muted m-2" href="{% url 'posts:group_posts' post.group.slug %}">
+        <strong class="d-block text-gray-dark">#{{ post.group.title }}</strong>
+      </a>
     {% endif %}
     {% if post.comments.exists %}
       <div class="text_muted mt-2 mb-2">
@@ -29,9 +29,9 @@
           </a>
         {% endif %}
         {% if user == post.author %}
-        <a class="btn btn-sm btn-info" href="{% url 'posts:post_edit' post.author.username post.id %}" role="button" style="background-color: #e3f2fd; color: black; border-color: #c7c7c7">
-          Редактировать
-        </a>
+          <a class="btn btn-sm btn-info" href="{% url 'posts:post_edit' post.author.username post.id %}" role="button" style="background-color: #e3f2fd; color: black; border-color: #c7c7c7">
+            Редактировать
+          </a>
         {% endif %}
       </div>
       <small class="text-muted">{{ post.pub_date|date:'d E Y' }}</small>

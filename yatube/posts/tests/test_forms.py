@@ -10,8 +10,10 @@ from posts.models import Group, Post, User
 
 USERNAME = 'testuser'
 POSTTEXT = 'Тут текст очередного нового поста'
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostFormTests(TestCase):
 
     @classmethod
@@ -23,14 +25,6 @@ class PostFormTests(TestCase):
             slug='test',
             description='test group'
         )
-
-    def setUp(self):
-        self.authorized_client = Client()
-        self.authorized_client.force_login(PostFormTests.user)
-
-    @override_settings(MEDIA_ROOT=tempfile.mkdtemp(dir=settings.MEDIA_ROOT))
-    def test_valid_form_create_post(self):
-        """Valid PostForm create post in posts."""
         small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -39,15 +33,27 @@ class PostFormTests(TestCase):
             b'\x02\x00\x01\x00\x00\x02\x02\x0C'
             b'\x0A\x00\x3B'
         )
-        uploaded = SimpleUploadedFile(
+        cls.uploaded = SimpleUploadedFile(
             name='small.gif',
             content=small_gif,
             content_type='image/gif'
         )
+
+    def setUp(self):
+        self.authorized_client = Client()
+        self.authorized_client.force_login(PostFormTests.user)
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
+    def test_valid_form_create_post(self):
+        """Valid PostForm create post in posts."""
         form_data = {
             'text': POSTTEXT,
             'group': PostFormTests.group.id,
-            'image': uploaded
+            'image': PostFormTests.uploaded
         }
         response = self.authorized_client.post(
             reverse('posts:new_post'),
@@ -60,8 +66,8 @@ class PostFormTests(TestCase):
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group, PostFormTests.group)
         self.assertEqual(post.author, PostFormTests.user)
-        self.assertEqual(post.image.name, f'posts/{uploaded.name}')
-        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        self.assertEqual(post.image.name,
+                         f'posts/{PostFormTests.uploaded.name}')
 
     def test_valid_form_saves_edited_post(self):
         """Valid form saves the edited post after submit."""
