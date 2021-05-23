@@ -230,7 +230,6 @@ class PostPagesTests(TestCase):
             image=PostPagesTests.uploaded)
 
         response = auth_follow_client.get(self.follow)
-        self.assertIn('page', response.context)
         self.context_test(response.context, new_post, 'page')
 
     def test_new_post_not_shown_to_unsubscribed_user(self):
