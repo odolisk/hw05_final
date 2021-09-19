@@ -146,10 +146,10 @@ dmypy.json
 .mypy_cache
 
 # папки со статикой и медиа
-static/
-media/
-yatube/posts/static/
-yatube/media/
+# static/
+# media/
+# yatube/posts/static/
+# yatube/media/
 
 req.txt
 *.old
